@@ -1,0 +1,78 @@
+
+========================================================================
+Part A -- secp256k1 group law
+========================================================================
+G on curve                        : True
+n*G is the identity               : True
+(n-1)*G + G is the identity       : True
+G + G == 2*G                      : True
+double-and-add == Montgomery ladder (20 random k): True
+P + O == P                        : True
+2G.x = 0xc6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5
+2G.y = 0x1ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a
+
+========================================================================
+Part B -- ECDSA and the nonce
+========================================================================
+private key d : 0xc0ffee00badc0de1234567890abcdef1122334455667788990aabbccddeeff00
+address       : 0xa0f598084F711360A38D861F8Fb2100949170C09
+r = 0x6db24bd1f24c922873bf956ade213b0181de54a320d224a61e74e9e454eb574d
+s = 0x330b8eda6a5e7e8b4b3eb62af76aa3075319bbc2af3581eb549d59c83fb13e7d
+recovery id = 0
+verifies                        : True
+reproducible across runs        : True
+rejects a different message     : True
+low-s enforced (s <= n/2)       : True
+recovered key matches signer    : True
+(r, n-s) also verifies          : True
+
+-- The attack: two messages signed with the same k --
+r1 = 0x2937153c79aead59d0671bfe2f7e4daa0139a449d0618cc5cacd3f86951ac7e3
+r2 = 0x2937153c79aead59d0671bfe2f7e4daa0139a449d0618cc5cacd3f86951ac7e3
+nonce reuse: identical r        : True
+original  d = 0xc0ffee00badc0de1234567890abcdef1122334455667788990aabbccddeeff00
+recovered d = 0xc0ffee00badc0de1234567890abcdef1122334455667788990aabbccddeeff00
+attack succeeded                : True
+
+========================================================================
+Part C -- BIP-39 / BIP-32 / BIP-44 and EIP-55
+========================================================================
+mnemonic : abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about
+seed     : 5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4
+m/44'/60'/0'/0/0 : 0x9858EfFD232B4033E47d90003D41EC34EcaEda94
+m/44'/60'/0'/0/1 : 0x6Fac4D18c912343BF86fa7049364Dd4E424Ab9C0
+m/44'/60'/0'/0/2 : 0xb6716976A3ebe8D39aCEB04372f22Ff8e6802D7A
+
+-- Passphrase enters the salt: every passphrase is 'valid' --
+passphrase 'correct horse'   : 0xFf0Bdf99513306994d4aF9949BA7cfA60204D285
+passphrase 'correct horse '  : 0x67dA015b6A80F19822e5d270A7788F72f018a724
+
+-- Parent-key recovery from xpub + one leaked non-hardened child --
+published xpub : xpub6EF8jXqFeFEW5bwMU7RpQtHkzE4KJxcqJtvkCjJumzW8CPpacXkb92ek4WzLQXjL93HycJwTPUAcuNxCqFPKKU5m5Z2Vq4nCyh5CyPeBFFr
+matches the real parent : True
+hardened child          : refused (hardened children are immune to this attack: I_L depends on the parent private key)
+watch-only derivation: xpub-derived address matches : True
+
+========================================================================
+Part D -- Post-quantum cost
+========================================================================
+Scheme              PQ     pk (B)  sig (B)  tx (B)  x ECDSA    tps
+------------------------------------------------------------------
+ECDSA (secp256k1)   no         33       72     215     1.0x   7.75
+Schnorr (BIP-340)   no         32       64     206     1.0x   8.09
+ML-DSA-44           yes      1312     2420    3842    17.9x   0.43
+ML-DSA-65           yes      1952     3309    5371    25.0x   0.31
+SLH-DSA-128s        yes        32     7856    7998    37.2x   0.21
+FN-DSA-512          yes       897      666    1673     7.8x   1.00
+
+Exposure to a cryptographically relevant quantum computer
+
+  p2pkh_unspent        PROTECTED (for now)     only HASH160(pubkey) is on chain; Shor has no public key to attack
+  p2pk                 EXPOSED                 the public key itself is in the output script (early coinbase)
+  reused_address       EXPOSED                 a previous spend revealed the public key; remaining funds sit behind it
+  mempool_transaction  EXPOSED (briefly)       the spend reveals the key; a fast attacker could race it before confirmation
+  ethereum_any_active  EXPOSED                 ecrecover derives the public key from any signature the account has sent
+
+Harvest Now, Decrypt Later: the ledger is permanent and public. Every public key
+published today can be collected now and broken whenever the hardware exists,
+so the deadline is set by (secure lifetime + migration time), not by a forecast.
